@@ -1,5 +1,3 @@
-BEGIN;
-
 DELETE FROM places WHERE NOT (categoryname ilike '%hotel%' OR categoryname ilike '%restaurant%' OR categoryname ilike '%hostel%' OR categoryname ilike '%bar%');
 
 -- create a table of segments, taken from the multi-linestring pedestrian network
@@ -35,6 +33,7 @@ places_segs AS (
 		segs.id AS seg_id, 
 		places.geom AS place_geom,
 		segs.geom AS seg_geom,
+		ST_ClosestPoint(segs.geom, places.geom) AS closest_point,
 		source_id
 	FROM 
 		places
@@ -47,19 +46,29 @@ places_segs AS (
 			ORDER BY places.geom <-> segs2.geom 
 			LIMIT 1
 		)
+), number_of_places AS (
+	SELECT COUNT(*) AS num FROM places
 )
 INSERT INTO pedestrian_network_segments (id, source_id, place_id, geom)
 SELECT
 	row_number() over() + (SELECT num FROM number_of_segments), source_id, place_id,
-	ST_MakeLine(ARRAY[place_geom, ST_ClosestPoint(place_geom, seg_geom)]) AS geom
+	ST_MakeLine(ARRAY[place_geom, closest_point]) AS geom
 FROM places_segs
 UNION ALL
 SELECT
-	row_number() over() + (SELECT num FROM number_of_segments), source_id, place_id,
-	ST_MakeLine(ARRAY[place_geom, ST_ClosestPoint(place_geom, seg_geom)]) AS geom
+	row_number() over() + (SELECT num FROM number_of_segments) + 1*(SELECT num FROM number_of_places), source_id, place_id,
+	ST_MakeLine(ARRAY[place_geom, closest_point]) AS geom
+FROM places_segs
+UNION ALL
+SELECT
+	row_number() over() + (SELECT num FROM number_of_segments) + 2*(SELECT num FROM number_of_places), source_id, NULL,
+	ST_MakeLine(ARRAY[closest_point, ST_StartPoint(seg_geom)]) AS geom
+FROM places_segs
+UNION ALL
+SELECT
+	row_number() over() + (SELECT num FROM number_of_segments) + 3*(SELECT num FROM number_of_places), source_id, NULL,
+	ST_MakeLine(ARRAY[closest_point, ST_EndPoint(seg_geom)]) AS geom
 FROM places_segs;
 
 --creates the edges into the source and target columns of pedestrian_network_segments, and adds a new column "pedestrian_network_segments_vertices"
-SELECT pgr_createTopology('pedestrian_network_segments', 0.0001, 'geom', 'id');
-
-COMMIT;
+SELECT pgr_createTopology('pedestrian_network_segments', 0.000001, 'geom', 'id');
