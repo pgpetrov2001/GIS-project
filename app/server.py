@@ -10,18 +10,24 @@ conn = psycopg2.connect(
     port="5432"
 )
 
-def db_fetch_all(query: str, params = None):
+def db_fetch_all(query: str, params = None, to_commit = None):
     cur = conn.cursor()
     cur.execute(query, params)
-    return cur.fetchall()
+    results = cur.fetchall()
+    if to_commit:
+        conn.commit()
+    return results
+
+relevant_categories = ['hotel', 'restaurant', 'bar', 'hostel']
+
 
 app = Flask(__name__)
+
 
 @app.route("/")
 def index():
     return render_template("index.html")
 
-relevant_categories = ['hotel', 'restaurant', 'bar', 'hostel']
 
 @app.route("/geojson/<string:name>", methods=["GET"])
 def read_geojson(name: str):
@@ -37,11 +43,13 @@ def read_geojson(name: str):
 
     return jsonify(db_fetch_all(*get_geojson_query(name))[0])
 
+
 @app.route("/tsp", methods=["GET"])
 def tsp():
     starting_node = request.args.get("starting_node", type=int)
     nodes_to_visit = list(map(int, request.args.getlist("node_to_visit"))) + [starting_node]
     return jsonify(db_fetch_all(*find_tsp_tour(starting_node, nodes_to_visit)))
+
 
 if __name__ == "__main__":
     app.run(debug=True)
