@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Хотели, хостели, ресторанти и барове и пешеходен достъп на жителите на София до тях (студентски проект)</title>
+	<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+	<link rel="stylesheet" href="{{ url_for('static', filename='lib/leaflet.css') }}">
+	<script src="{{ url_for('static', filename='lib/leaflet.js') }}"></script>
+	<script src="{{ url_for('static', filename='lib/Leaflet.TileLayer.MBTiles.js') }}"></script>
+</head>
+<body>
+	<main>
+		<div id="map"></div>
+		<script src="{{ url_for('static', filename='geoscript.js') }}"></script>
+	</main>
+</body>
+</html>
