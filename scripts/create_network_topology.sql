@@ -1,4 +1,11 @@
 DELETE FROM places WHERE NOT (categoryname ilike '%hotel%' OR categoryname ilike '%restaurant%' OR categoryname ilike '%hostel%' OR categoryname ilike '%bar%');
+ALTER TABLE places ADD COLUMN IF NOT EXISTS category_simplified VARCHAR(255) DEFAULT NULL;
+UPDATE places SET category_simplified = CASE
+	WHEN categoryname ilike '%hotel%' THEN 'hotel'
+	WHEN categoryname ilike '%restaurant%' THEN 'restaurant'
+	WHEN categoryname ilike '%hostel%' THEN 'hostel'
+	WHEN categoryname ilike '%bar%' THEN 'bar'
+END;
 
 -- create a table of segments, taken from the multi-linestring pedestrian network
 CREATE TABLE pedestrian_network_segments AS

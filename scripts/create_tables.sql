@@ -1,9 +1,6 @@
 create table pedestrian_network (
 	id serial primary key,
 	name varchar(255),
-	type varchar(255),
-	max_speed real,
-	length_m real,
 	geom geometry(MULTILINESTRING, 7801)
 );
 
