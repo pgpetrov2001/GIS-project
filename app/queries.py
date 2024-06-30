@@ -55,7 +55,7 @@ def find_tsp_tour(starting_node: int, nodes_to_visit: list):
         WITH order_array AS (
             SELECT array_agg(source ORDER BY seq) AS arr FROM tsp_edges --WARNING: assumes that start = destination in tour
         )
-        SELECT start_vid, end_vid, pedestrian_network_segments.id, pedestrian_network_segments.source, pedestrian_network_segments.target, pedestrian_network_segments.geom
+        SELECT ST_AsGeoJson(pedestrian_network_segments.geom) AS geom, start_vid, end_vid, pedestrian_network_segments.id AS eid, pedestrian_network_segments.source, pedestrian_network_segments.target
         FROM pgr_Dijkstra(
             'SELECT id, source, target, ST_Length(geom) AS cost, ST_Length(geom) AS reverse_cost FROM pedestrian_network_segments',
             'SELECT source, target FROM tsp_edges ORDER BY seq',
@@ -68,3 +68,15 @@ def find_tsp_tour(starting_node: int, nodes_to_visit: list):
             path_seq
         );
     """, { "start_id": starting_node, "nodes_to_visit": nodes_to_visit }, True
+
+
+def find_proximity(place_id: int, types: list, threshold: float = 0.001):
+    return """
+        SELECT id
+        FROM places
+        WHERE ST_DWithin(
+            geom,
+            (SELECT geom FROM places WHERE id = %(place_id)s),
+            %(threshold)s
+        ) AND category_simplified = ANY(%(types)s);
+    """, { "place_id": place_id, "types": types, "threshold": threshold }, None
