@@ -12,6 +12,14 @@
 <body>
 	<main>
 		<div id="map"></div>
+		<section class="radio-section">
+		<div class="radio-list">
+			<h1>Types of locations to visit:</h1>
+			<div class="radio-item"><input name="radio" id="radio1" checked type="radio" onclick="setLocationsOption(['bar'])"><label for="radio1">Bars</label></div>
+			<div class="radio-item"><input name="radio" id="radio2" type="radio" onclick="setLocationsOption(['restaurant'])"><label for="radio2">Restaurants</label></div>
+			<div class="radio-item"><input name="radio" id="radio3" type="radio" onclick="setLocationsOption(['bar', 'restaurant'])"><label for="radio3">Bars & Restaurants</label></div>
+		</div>
+		</section>
 		<script src="{{ url_for('static', filename='geoscript.js') }}"></script>
 	</main>
 </body>

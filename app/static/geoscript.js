@@ -5,6 +5,13 @@ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
 	attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
 }).addTo(map);
 
+const type2color = {
+	'hotel': '#E9C46A',
+	'restaurant': '#36BA98',
+	'hostel': '#698474',
+	'bar': '#3FA2F6',
+};
+
 const info = L.control();
 
 info.onAdd = function (map) {
@@ -13,13 +20,41 @@ info.onAdd = function (map) {
 	return this._div;
 };
 
+const legend = L.control({position: 'bottomleft'});
+legend.onAdd = (map) => {
+	const div = L.DomUtil.create('div', 'info legend');
+	const labels = ['<strong>Categories</strong>'],
+	categories = Object.keys(type2color).map((cat) => [cat, cat.charAt(0).toUpperCase() + cat.slice(1)]);
+	for (const [ cat, displayCat ] of categories) {
+		labels.push(`<i class="circle" style="background: ${type2color[cat]}"></i> ${displayCat ?? '+'}`);
+	}
+	div.innerHTML = labels.join('<br>');
+	return div;
+};
+legend.addTo(map);
+
 info.update = function (props) {
 	this._div.innerHTML = '';
-	for (const [key, value] of Object.entries(props || {})) {
-		if (!["name", "categoryname", "address", "phone", "id"].includes(key)) continue;
-		this._div.innerHTML += `<b>${key}</b>: <div class="info_block">${value}</div><br>`;
+	if (!props) return;
+	for (const key of ["title", "categoryname", "address", "phone", "id"]) {
+		if (!(key in props)) continue;
+		const value = props[key];
+		const displayKey = {
+			title: 'Title',
+			categoryname: 'Category',
+			address: 'Address',
+			phone: 'Phone Number',
+			id: 'ID',
+		}[key] ?? key;
+		this._div.innerHTML += `<h3>${displayKey}</h3>: <div class="info_block">${value ?? 'N/A'}</div><br>`;
 	}
 };
+
+let targetLocations = ['bar'];
+
+function setLocationsOption(types) {
+	targetLocations = types.slice();
+}
 
 async function loadFromUrl(url) {
 	const response = await fetch(url);
@@ -39,31 +74,24 @@ function addGeoJSONLayer(data, options = {}) {
 	return [ geoJsonLayer, feature ];
 }
 
-function addMbTilesLayer(url) {
-	return L.tileLayer.mbTiles(url).addTo(map);
-}
-
-const type2color = {
-	'hotel': 'blue',
-	'restaurant': 'red',
-	'hostel': 'green',
-	'bar': 'purple',
-};
+const highlightStyle = (feature) => { return {
+	color: '#666',
+	fillColor: type2color[feature.properties.category_simplified],
+	weight: 3,
+}};
 
 const highlightFeature = (e) => {
-	e.target.setStyle({
-		weight: 5,
-		color: '#666',
-		dashArray: '',
-		fillOpacity: 0.7
-	});
-
-	e.target.bringToFront();
+	if (tspPlaces == null || !tspPlaces.includes(e.target.feature.id)) {
+		e.target.setStyle(highlightStyle(e.target.feature));
+		e.target.bringToFront();
+	}
 	info.update(e.target.feature.properties);
 };
 
 const resetHighlight = (e) => {
-	placesLayer.resetStyle(e.target);
+	if (tspPlaces == null || !tspPlaces.includes(e.target.feature.id)) {
+		placesLayer.resetStyle(e.target);
+	}
 	info.update();
 };
 
@@ -71,8 +99,25 @@ const clickFeature = async (e) => {
 	if (placesLayer != placesLayer) return;
 	if (tspFeature != null) map.removeLayer(tspFeature);
 	const id = e.target.feature.id;
-	const data = await loadFromUrl(`/proximity?place_id=${id}&threshold=500&type=bar&type=restaurant&type=hotel&type=hostel`).catch((err) => alert(err.message));
+	const data = await loadFromUrl(`/proximity?place_id=${id}&threshold=500&${targetLocations.map((locationType) => `type=${locationType}`).join('&')}`)
+		.catch((err) => alert(err.message));
+	if (tspPlaces != null) {
+		for (const placeId of tspPlaces) {
+			placesLayer.resetStyle(placesLayers[placeId]);
+		}
+	}
 	const placeIds = data.map(({ id }) => id);
+	tspPlaces = placeIds.slice();
+	tspPlaces.push(e.target.feature.id);
+	for (const placeId of placeIds) {
+		const placeLayer = placesLayers[placeId];
+		const { feature } = placeLayer;
+		placeLayer.setStyle(highlightStyle(feature));
+	}
+	e.target.setStyle({
+		...highlightStyle(e.target.feature),
+		color: 'red',
+	});
 	console.log(placeIds);
 	const tour = await loadFromUrl(`/tsp?starting_node=${id}&${placeIds.map((id) => `node_to_visit=${id}`).join('&')}`).catch((err) => alert(err.message));
 	const group = [];
@@ -80,10 +125,15 @@ const clickFeature = async (e) => {
 		const geom = JSON.parse(segment.geom);
 		group.push(geom.coordinates.map(([lng, lat]) => [lat, lng]));
 	}
-	const polyline = L.polyline(group, { color: 'red', weight: 5 }).addTo(map);
+	const polyline = L.polyline(group, {
+		color: 'blue',
+		weight: 4,
+	}).addTo(map);
+	placesLayer.bringToFront();
 	tspFeature = L.featureGroup([polyline]).addTo(map);
 };
 
+const placesLayers = {};
 
 const placesLayerOptions = {
 	style: function(feature) {
@@ -92,10 +142,11 @@ const placesLayerOptions = {
 	pointToLayer: function (feature, latlng) {
         return new L.Circle(latlng, {
             radius: 10,
-            fillOpacity: 0.85
+            fillOpacity: 0.95
         });
     },
 	onEachFeature: function(feature, layer) {
+		placesLayers[feature.id] = layer;
 		layer.on({
 			mouseover: highlightFeature,
 			mouseout: resetHighlight,
@@ -115,6 +166,7 @@ const pedestrianNetworkLayerOptions = {
 let placesLayer = null, placesFeature = null;
 let pedestrianNetworkLayer = null, pedestrianNetworkFeature = null;
 let tspLayer = null, tspFeature = null;
+let tspPlaces = null;
 
 info.addTo(map);
 
@@ -123,12 +175,11 @@ loadGeoJSON('places')
 		//Wait for places to be loaded before loading pedestrian network, because it takes longer to load
 		[ placesLayer, placesFeature ] = addGeoJSONLayer(placesData, placesLayerOptions);
 
-		// addMbTilesLayer('/static/pedestrian_network.mbtiles');
 		const pedestrianNetworkData = await loadGeoJSON('pedestrian_network');
 
-		map.removeLayer(placesFeature);
 		[ pedestrianNetworkLayer, pedestrianNetworkFeature ] = addGeoJSONLayer(pedestrianNetworkData, pedestrianNetworkLayerOptions);
-		[ placesLayer, placesFeature ]                       = addGeoJSONLayer(placesData, placesLayerOptions);
+		placesLayer.bringToFront();
+		pedestrianNetworkLayer.bringToBack();
 
 	})
 	.catch((err) => alert(err.message));
