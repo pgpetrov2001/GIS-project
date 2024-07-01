@@ -55,13 +55,22 @@ def find_tsp_tour(starting_node: int, nodes_to_visit: list):
         WITH order_array AS (
             SELECT array_agg(source ORDER BY seq) AS arr FROM tsp_edges --WARNING: assumes that start = destination in tour
         )
-        SELECT ST_AsGeoJson(pedestrian_network_segments.geom) AS geom, start_vid, end_vid, pedestrian_network_segments.id AS eid, pedestrian_network_segments.source, pedestrian_network_segments.target
+        SELECT
+        ST_AsGeoJson(
+            CASE
+                WHEN node = pns.source THEN pns.geom
+                ELSE ST_MakeLine(ST_EndPoint(pns.geom), ST_StartPoint(pns.geom))
+            END
+        ) AS geom,
+        pn.max_speed AS max_speed_kmh,
+        ST_Length(pns.geom) * 111000 AS length_m
         FROM pgr_Dijkstra(
             'SELECT id, source, target, ST_Length(geom) AS cost, ST_Length(geom) AS reverse_cost FROM pedestrian_network_segments',
             'SELECT source, target FROM tsp_edges ORDER BY seq',
             directed := false
         )
-        JOIN pedestrian_network_segments ON edge = pedestrian_network_segments.id
+        JOIN pedestrian_network_segments AS pns ON edge = pns.id
+        JOIN pedestrian_network AS pn ON pns.source_id = pn.id
         WHERE edge != -1
         ORDER BY (
             array_position((SELECT arr FROM order_array), start_vid),

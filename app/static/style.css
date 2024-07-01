@@ -6,7 +6,7 @@
 main {
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
+	justify-content: space-around;
 	margin: 1em;
 }
 
@@ -142,8 +142,28 @@ body {
 	color: #ffffff;
 }
 
+fieldset {
+	display: inline-block;
+	border: none;
+	position: relative;
+}
+
+.side-section {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+}
+
 .radio-section {
 	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+}
+.radio-list {
+	display: flex;
+	flex-direction: column;
 	color: #ffffff;
 	align-items: center;
 	justify-content: center;

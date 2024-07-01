@@ -56,6 +56,20 @@ function setLocationsOption(types) {
 	targetLocations = types.slice();
 }
 
+let toShowArrows = false;
+
+function showArrows(value) {
+	toShowArrows = value;
+}
+
+function setRouteInfo(totalDist, totalTime, numBars, numRestaurants) {
+	const minutes = totalTime * 60;
+	document.getElementById('route-info').innerHTML = `
+		Total distance: ${totalDist.toFixed(0)}m, Total time: ${minutes.toFixed(0)} minute${minutes == 1? '': 's'}<br/>
+		Visited ${numBars} bars and ${numRestaurants} restaurants in total.
+	`;
+}
+
 async function loadFromUrl(url) {
 	const response = await fetch(url);
 	if (!response.ok) {
@@ -109,28 +123,50 @@ const clickFeature = async (e) => {
 	const placeIds = data.map(({ id }) => id);
 	tspPlaces = placeIds.slice();
 	tspPlaces.push(e.target.feature.id);
+
+	let numBars = 0, numRestaurants = 0;
 	for (const placeId of placeIds) {
 		const placeLayer = placesLayers[placeId];
 		const { feature } = placeLayer;
+		if (feature.properties.category_simplified === 'bar') numBars++;
+		if (feature.properties.category_simplified === 'restaurant') numRestaurants++;
 		placeLayer.setStyle(highlightStyle(feature));
 	}
 	e.target.setStyle({
 		...highlightStyle(e.target.feature),
 		color: 'red',
 	});
+
 	console.log(placeIds);
 	const tour = await loadFromUrl(`/tsp?starting_node=${id}&${placeIds.map((id) => `node_to_visit=${id}`).join('&')}`).catch((err) => alert(err.message));
 	const group = [];
+	let totalTime = 0;
+	let totalDist = 0;
 	for (const segment of tour) {
 		const geom = JSON.parse(segment.geom);
 		group.push(geom.coordinates.map(([lng, lat]) => [lat, lng]));
+		totalDist += segment.length_m;
+		totalTime += (segment.length_m / 1000) / segment.max_speed_kmh;
 	}
+	setRouteInfo(totalDist, totalTime, numBars, numRestaurants);
+	let featureGroup = [];
 	const polyline = L.polyline(group, {
 		color: 'blue',
 		weight: 4,
 	}).addTo(map);
+	featureGroup.push(polyline);
+	if (toShowArrows) {
+		featureGroup.push(L.polylineDecorator(polyline, {
+			patterns: [{
+				offset: 0,
+				endOffset: '0%',
+				repeat: 20,
+				symbol: L.Symbol.arrowHead({pixelSize: 5, polygon: false, pathOptions: {stroke: true}})
+			}],
+		}).addTo(map));
+	}
+	tspFeature = L.featureGroup(featureGroup).addTo(map);
 	placesLayer.bringToFront();
-	tspFeature = L.featureGroup([polyline]).addTo(map);
 };
 
 const placesLayers = {};

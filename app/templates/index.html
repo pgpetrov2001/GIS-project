@@ -7,18 +7,28 @@
 	<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 	<link rel="stylesheet" href="{{ url_for('static', filename='lib/leaflet.css') }}">
 	<script src="{{ url_for('static', filename='lib/leaflet.js') }}"></script>
-	<script src="{{ url_for('static', filename='lib/Leaflet.TileLayer.MBTiles.js') }}"></script>
+	<script src="{{ url_for('static', filename='lib/leaflet.polylineDecorator.js') }}"></script>
 </head>
 <body>
 	<main>
 		<div id="map"></div>
-		<section class="radio-section">
-		<div class="radio-list">
-			<h1>Types of locations to visit:</h1>
-			<div class="radio-item"><input name="radio" id="radio1" checked type="radio" onclick="setLocationsOption(['bar'])"><label for="radio1">Bars</label></div>
-			<div class="radio-item"><input name="radio" id="radio2" type="radio" onclick="setLocationsOption(['restaurant'])"><label for="radio2">Restaurants</label></div>
-			<div class="radio-item"><input name="radio" id="radio3" type="radio" onclick="setLocationsOption(['bar', 'restaurant'])"><label for="radio3">Bars & Restaurants</label></div>
-		</div>
+		<section id="side-section">
+			<div class="radio-section">
+				<h1>Types of locations to visit:</h1>
+				<fieldset>
+				<div class="radio-item"><input name="barnrestaurant" id="radio1" checked type="radio" onclick="setLocationsOption(['bar'])"><label for="radio1">Bars</label></div>
+				<div class="radio-item"><input name="barnrestaurant" id="radio2" type="radio" onclick="setLocationsOption(['restaurant'])"><label for="radio2">Restaurants</label></div>
+				<div class="radio-item"><input name="barnrestaurant" id="radio3" type="radio" onclick="setLocationsOption(['bar', 'restaurant'])"><label for="radio3">Bars & Restaurants</label></div>
+				</fieldset>
+			</div>
+			<div class="radio-section">
+				<h1>Show path arrows:</h1>
+				<fieldset>
+				<div class="radio-item"><input name="showarrows" id="radio4" type="radio" onclick="showArrows(true)"><label for="radio4">Yes</label></div>
+				<div class="radio-item"><input name="showarrows" id="radio5" checked type="radio" onclick="showArrows(false)"><label for="radio5">No</label></div>
+				</fieldset>
+			</div>
+			<div><p id="route-info"></p></div>
 		</section>
 		<script src="{{ url_for('static', filename='geoscript.js') }}"></script>
 	</main>
